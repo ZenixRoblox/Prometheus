@@ -1,6 +1,6 @@
 # Prometheus UI Library
 
-![Prometheus Logo]([https://example.com/prometheus_logo.png](https://us-east.storage.cloudconvert.com/tasks/62c5210a-fc5d-414a-bd36-1c93b1fe83e5/Terminal_Aide_0017_29.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cloudconvert-production%2F20241015%2Fva%2Fs3%2Faws4_request&X-Amz-Date=20241015T011719Z&X-Amz-Expires=86400&X-Amz-Signature=889ef3b47888d5f47500bb4b04027a19feef3868c825ade03d31b557dde2fb76&X-Amz-SignedHeaders=host&response-content-disposition=inline%3B%20filename%3D%22Terminal_Aide_0017_29.png%22&response-content-type=image%2Fpng&x-id=GetObject))
+![Prometheus Logo](https://example.com/prometheus_logo.png)
 
 ## Table of Contents
 1. [Introduction](#introduction)
