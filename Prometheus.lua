@@ -3,7 +3,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local Prometheis = {}
+local Prometheus = {}
 
 local function create(className, properties)
     local instance = Instance.new(className)
@@ -28,11 +28,133 @@ local function shortenKeyName(keyName)
     return shortNames[keyName] or keyName
 end
 
-function Prometheis.createWindow(title)
-    local existingGui = CoreGui:FindFirstChild("Prometheis")
+function Prometheus.createLoader(title)
+    local existingGui = CoreGui:FindFirstChild("Prometheus")
     if existingGui then existingGui:Destroy() end
 
-    local screenGui = create("ScreenGui", {Name = "Prometheis", Parent = CoreGui})
+    local loaderGui = create("ScreenGui", {
+        Name = "PrometheusLoader",
+        Parent = CoreGui
+    })
+
+    local loaderFrame = create("Frame", {
+        Name = "LoaderFrame",
+        Size = UDim2.new(0, 300, 0, 150),
+        Position = UDim2.new(0.5, -150, 0.5, -75),
+        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+        BorderSizePixel = 0,
+        Parent = loaderGui
+    })
+
+    create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = loaderFrame})
+
+    local logoImage = create("ImageLabel", {
+        Name = "Logo",
+        Size = UDim2.new(0, 80, 0, 80),
+        Position = UDim2.new(0.5, -40, 0, 5),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://131231007815032", 
+        Parent = loaderFrame
+    })
+
+    local titleLabel = create("TextLabel", {
+        Name = "TitleLabel",
+        Size = UDim2.new(1, -20, 0, 20),
+        Position = UDim2.new(0, 10, 0, 85),
+        BackgroundTransparency = 1,
+        Text = "Prometheus | remade by @zenix",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 18,
+        Font = Enum.Font.SourceSansBold,
+        Parent = loaderFrame
+    })
+
+    local statusLabel = create("TextLabel", {
+        Name = "StatusLabel",
+        Size = UDim2.new(1, -20, 0, 20),
+        Position = UDim2.new(0, 10, 0, 105),
+        BackgroundTransparency = 1,
+        Text = "Initializing...",
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        TextSize = 14,
+        Font = Enum.Font.SourceSans,
+        Parent = loaderFrame
+    })
+
+    local loadingBarBackground = create("Frame", {
+        Name = "LoadingBarBackground",
+        Size = UDim2.new(1, -20, 0, 10),
+        Position = UDim2.new(0, 10, 1, -25),
+        BackgroundColor3 = Color3.fromRGB(50, 50, 50),
+        BorderSizePixel = 0,
+        Parent = loaderFrame
+    })
+
+    create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = loadingBarBackground})
+
+    local loadingBarFill = create("Frame", {
+        Name = "LoadingBarFill",
+        Size = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 162, 255),
+        BorderSizePixel = 0,
+        Parent = loadingBarBackground
+    })
+
+    create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = loadingBarFill})
+
+    local function updateLoader(status, progress)
+        statusLabel.Text = status
+        TweenService:Create(loadingBarFill, TweenInfo.new(0.2), {Size = UDim2.new(progress, 0, 1, 0)}):Play()
+    end
+
+    local function closeLoader()
+        loaderGui:Destroy()
+    end
+
+    return updateLoader, closeLoader
+end
+
+function Prometheus.createWindow(title)
+    local updateLoader, closeLoader = Prometheus.createLoader(title)
+
+    updateLoader("Initializing...", 0)
+    wait(0.5)
+
+    local loadingSteps = {}
+    local totalSteps = 100
+    local baseMessages = {
+        "Creating window...",
+        "Adding tabs...",
+        "Setting up sections...",
+        "Initializing buttons...",
+        "Configuring toggles...",
+        "Preparing sliders...",
+        "Setting up dropdowns...",
+        "Initializing color pickers...",
+        "Finalizing UI components..."
+    }
+    
+    for i = 1, totalSteps do
+        local progress = i / totalSteps
+        local messageIndex = math.ceil(progress * #baseMessages)
+        local message = baseMessages[messageIndex]
+        
+        if i % 50 == 0 then
+            message = message .. string.format(" (%.1f%%)", progress * 100)
+        end
+        
+        table.insert(loadingSteps, {message, progress})
+    end
+    
+    for _, step in ipairs(loadingSteps) do
+        updateLoader(step[1], step[2])
+        wait(0.01)
+    end
+
+    local existingGui = CoreGui:FindFirstChild("Prometheus")
+    if existingGui then existingGui:Destroy() end
+
+    local screenGui = create("ScreenGui", {Name = "Prometheus", Parent = CoreGui})
     local mainFrame = create("Frame", {
         Name = "MainFrame",
         Size = UDim2.new(0, 600, 0, 450),
@@ -1290,7 +1412,7 @@ function Prometheis.createWindow(title)
         }
     end
 
-    return {
+    local result = {
         mainFrame = mainFrame,
         tabFrame = tabFrame,
         contentFrame = contentFrame,
@@ -1300,6 +1422,11 @@ function Prometheis.createWindow(title)
         end,
         notify = notify
     }
+
+    updateLoader("Completed the creation of Prometheus.", 1)
+    wait(0.5)
+    closeLoader()
+    return result
 end
 
-return Prometheis
+return Prometheus
