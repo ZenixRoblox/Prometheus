@@ -156,6 +156,8 @@ Notifications are used to display informative pop-ups to users. You can add noti
 
 ```lua
 window.notify("Welcome! Thanks for using Prometheus UI!", "Info", 5)
+window.notify("Welcome! Thanks for using Prometheus UI!", "Error", 5)
+window.notify("Welcome! Thanks for using Prometheus UI!", "Warning", 5)
 ```
 
 ## Contributing
