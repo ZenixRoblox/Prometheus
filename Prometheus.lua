@@ -155,7 +155,7 @@ function Prometheus.createWindow(title)
     if existingGui then existingGui:Destroy() end
 
     local screenGui = create("ScreenGui", {Name = "Prometheus", Parent = CoreGui})
-    screenGui.Enabled = true  // Start with the UI visible
+    screenGui.Enabled = true
 
     local mainFrame = create("Frame", {
         Name = "MainFrame",
