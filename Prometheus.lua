@@ -155,6 +155,8 @@ function Prometheus.createWindow(title)
     if existingGui then existingGui:Destroy() end
 
     local screenGui = create("ScreenGui", {Name = "Prometheus", Parent = CoreGui})
+    screenGui.Enabled = true  // Start with the UI visible
+
     local mainFrame = create("Frame", {
         Name = "MainFrame",
         Size = UDim2.new(0, 600, 0, 450),
@@ -1424,6 +1426,16 @@ function Prometheus.createWindow(title)
         }
     end
 
+    local function toggleUI()
+        screenGui.Enabled = not screenGui.Enabled
+    end
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+            toggleUI()
+        end
+    end)
+    
     local result = {
         mainFrame = mainFrame,
         tabFrame = tabFrame,
@@ -1432,7 +1444,8 @@ function Prometheus.createWindow(title)
         selectTab = function(index)
             if tabs[index] then tabs[index].button.MouseButton1Click:Fire() end
         end,
-        notify = notify
+        notify = notify,
+        toggleUI = toggleUI 
     }
 
     updateLoader("Completed the creation of Prometheus.", 1)
