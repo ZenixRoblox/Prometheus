@@ -1,6 +1,6 @@
 # Prometheus UI Library
 
-![Prometheus Logo](https://example.com/prometheus_logo.png)
+![Prometheus Logo](logo.png)
 
 ## Table of Contents
 1. [Introduction](#introduction)
