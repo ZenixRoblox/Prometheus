@@ -621,9 +621,9 @@ function Prometheus.createWindow(title)
                 BorderSizePixel = 0,
                 Parent = sectionContent
             })
-
+        
             create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = toggleFrame})
-
+        
             local toggleLabel = create("TextLabel", {
                 Name = toggleName .. "Label",
                 Size = UDim2.new(1, -100, 1, 0),
@@ -637,7 +637,7 @@ function Prometheus.createWindow(title)
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 Parent = toggleFrame
             })
-
+        
             local bindButton = create("TextButton", {
                 Name = "BindButton",
                 Size = UDim2.new(0, 60, 1, 0),
@@ -651,7 +651,7 @@ function Prometheus.createWindow(title)
                 TextXAlignment = Enum.TextXAlignment.Right,
                 Parent = toggleFrame
             })
-
+        
             local toggleIndicator = create("Frame", {
                 Name = "Indicator",
                 Size = UDim2.new(0, 20, 0, 20),
@@ -660,38 +660,45 @@ function Prometheus.createWindow(title)
                 BorderSizePixel = 0,
                 Parent = toggleFrame
             })
-
+        
             create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = toggleIndicator})
-
+        
             local toggled = defaultState or false
             local currentBind = defaultBind
             local waitingForBind = false
-
+        
             local function updateToggleState()
                 if toggled then
                     TweenService:Create(toggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 162, 255)}):Play()
                 else
                     TweenService:Create(toggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
                 end
-                callback(toggled)
+                task.spawn(function()
+                    pcall(callback, toggled)
+                end)
             end
-
+        
             local function updateBindText()
                 local shortName = currentBind and shortenKeyName(currentBind.Name) or "..."
                 bindButton.Text = "[ " .. shortName .. " ]"
             end
-
+        
+            local function toggleState()
+                toggled = not toggled
+                updateToggleState()
+            end
+        
             toggleFrame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    toggled = not toggled
-                    updateToggleState()
+                    toggleState()
                 end
             end)
-
+        
             bindButton.MouseButton1Click:Connect(function()
+                if waitingForBind then return end
                 waitingForBind = true
                 bindButton.Text = "[ ... ]"
-
+        
                 local connection
                 connection = UserInputService.InputBegan:Connect(function(input)
                     if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
@@ -702,17 +709,16 @@ function Prometheus.createWindow(title)
                     end
                 end)
             end)
-
+        
             UserInputService.InputBegan:Connect(function(input)
                 if not waitingForBind and currentBind and 
                    (input.KeyCode == currentBind or input.UserInputType == currentBind) then
-                    toggled = not toggled
-                    updateToggleState()
+                    toggleState()
                 end
             end)
-
+        
             updateToggleState()
-
+        
             return function()
                 return toggled, currentBind
             end
@@ -960,8 +966,14 @@ function Prometheus.createWindow(title)
                 end
             
                 containerTween.Completed:Connect(function()
-                    sectionContent.Parent.CanvasSize = UDim2.new(0, 0, 0, 0)
-                    sectionContent.Parent.CanvasSize = UDim2.new(0, 0, 0, sectionContent.Parent.UIListLayout.AbsoluteContentSize.Y)
+                    local parent = sectionContent.Parent
+                    if parent and parent:IsA("ScrollingFrame") then
+                        parent.CanvasSize = UDim2.new(0, 0, 0, 0)
+                        local listLayout = parent:FindFirstChildOfClass("UIListLayout")
+                        if listLayout then
+                            parent.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+                        end
+                    end
                 end)
             end
 
