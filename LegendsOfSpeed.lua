@@ -1,4 +1,4 @@
-local Prometheus = loadstring(game:HttpGet("https://pastebin.com/raw/R9Zivr7x"))()
+local Prometheus = loadstring(game:HttpGet("https://raw.githubusercontent.com/ZenixRoblox/Prometheus/refs/heads/main/Prometheus.lua"))()
 
 local window = Prometheus.createWindow("Legends Of Speed")
 local mainTab = window.addTab("Main")
