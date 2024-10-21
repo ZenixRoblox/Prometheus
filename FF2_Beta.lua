@@ -1,6 +1,48 @@
 local b1 = game:GetService("ReplicatedFirst"):FindFirstChild("LocalScript")
 if b1 then b1:Destroy() end
 
+local ContentProvider = game:GetService("ContentProvider")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Mouse = Player:GetMouse()
+local Camera = workspace.CurrentCamera
+
+-- Constants
+local GRAVITY = 28
+local MAX_POWER = 95
+local MIN_POWER = 40
+local MAX_RANGE = 20
+local AUTO_CATCH_RANGE = 6
+
+-- States
+local IsAimbotActive = true
+local IsLocked = false
+local LockedPlayer = nil
+local ClosestPlayer = nil
+local AutoAngle = false
+local AutoPower = false
+
+local Config = {
+    FOVEnabled = true,
+    MagsEnabled = false,
+    AutoCatch = false,
+    FOVCircle = {
+        Radius = 145,
+        Thickness = 2,
+        Transparency = 0.7,
+        ColorDefault = Color3.new(1, 1, 1),
+        ColorInRange = Color3.new(0.5098, 0.5098, 0.7059),
+        OffsetY = 35,
+    },
+}
+
+local Catchy, CatchS
+
 local Prometheus = loadstring(game:HttpGet("https://pastebin.com/raw/R9Zivr7x"))()
 local window = Prometheus.createWindow("Football Aimbot")
 
@@ -21,8 +63,8 @@ mainTab.addToggle(aimbotSection, "Enable Aimbot", true, function(state)
         beam.Attachment0 = Attach0
         beam.Attachment1 = Attach1
         beam.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(88, 101, 242)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+            ColorSequenceKeypoint.new(0, Color3.new(0.266667, 1.000000, 0.121569)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.278431, 0.278431, 0.278431))
         })
         beam.Segments = 5000
 
@@ -42,14 +84,14 @@ mainTab.addToggle(aimbotSection, "Enable Aimbot", true, function(state)
         landPart.CanCollide = false
         landPart.Anchored = true
         landPart.Shape = Enum.PartType.Ball
-        landPart.Color = Color3.fromRGB(255, 165, 0)
+        landPart.Color = Color3.fromRGB(45, 165, 0)
 
         IsLocked = false
 
         trc = Drawing.new("Line")
         trc.Transparency = 0.70
         trc.Thickness = 4.5
-        trc.Color = Color3.fromRGB(88, 101, 242)
+        trc.Color = Color3.new(0.109804, 1.000000, 0.152941)
 
         UserInputService.InputBegan:Connect(function(input, gpe)
             if input.KeyCode == Enum.KeyCode.Q and not gpe then
@@ -105,557 +147,119 @@ settingsTab.addSlider(catchSection,"Auto Catch Range", 1, 20, 6, function(value)
     AUTO_CATCH_RANGE = value
 end)
 
-local ContentProvider = game:GetService("ContentProvider")
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local function createCard(title, parent, keybind)
+    local card = Instance.new("Frame")
+    card.Name = title .. "Card"
+    card.Parent = parent
+    card.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    card.BorderSizePixel = 0
+    card.Size = UDim2.new(0, 140, 0, 70)  -- Increased size
 
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Mouse = Player:GetMouse()
-local Camera = workspace.CurrentCamera
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 12)
+    uiCorner.Parent = card
 
--- Constants
-local GRAVITY = 28
-local MAX_POWER = 95
-local MIN_POWER = 40
-local MAX_RANGE = 20
-local AUTO_CATCH_RANGE = 6
+    local uiStroke = Instance.new("UIStroke")
+    uiStroke.Color = Color3.fromRGB(80, 80, 80)  -- Greyish color
+    uiStroke.Thickness = 2
+    uiStroke.Parent = card
 
--- States
-local IsAimbotActive = true
-local IsLocked = false
-local LockedPlayer = nil
-local ClosestPlayer = nil
-local AutoAngle = true
-local AutoPower = true
+    local uiGradient = Instance.new("UIGradient")
+    uiGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 60, 60)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 40))
+    })
+    uiGradient.Rotation = 90
+    uiGradient.Parent = card
 
-local Config = {
-    FOVEnabled = true,
-    MagsEnabled = false,
-    AutoCatch = false,
-    FOVCircle = {
-        Radius = 145,
-        Thickness = 2,
-        Transparency = 0.7,
-        ColorDefault = Color3.new(1, 1, 1),
-        ColorInRange = Color3.new(0.5098, 0.5098, 0.7059),
-        OffsetY = 35,
-    },
-}
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Parent = card
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 0, 0, 5)
+    titleLabel.Size = UDim2.new(1, 0, 0, 20)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 14
 
-local Catchy, CatchS
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Name = "Value"
+    valueLabel.Parent = card
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Position = UDim2.new(0, 0, 0, 25)
+    valueLabel.Size = UDim2.new(1, 0, 0, 30)
+    valueLabel.Font = Enum.Font.GothamBold
+    valueLabel.Text = "0"
+    valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueLabel.TextSize = 20
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+    if keybind then
+        local keybindLabel = Instance.new("TextLabel")
+        keybindLabel.Name = "Keybind"
+        keybindLabel.Parent = card
+        keybindLabel.BackgroundTransparency = 1
+        keybindLabel.Position = UDim2.new(0, 0, 1, -20)
+        keybindLabel.Size = UDim2.new(1, 0, 0, 20)
+        keybindLabel.Font = Enum.Font.GothamSemibold
+        keybindLabel.Text = keybind
+        keybindLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        keybindLabel.TextSize = 12
+    end
+
+    return card
+end
 
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AimbotUI"
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
 local MainFrame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
-local DropShadowHolder = Instance.new("Frame")
-local DropShadow = Instance.new("ImageLabel")
-local ThrowType = Instance.new("Frame")
-local Line = Instance.new("Frame")
-local AirTime = Instance.new("Frame")
-local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
-local JusAText = Instance.new("TextLabel")
-local ThrowType_2 = Instance.new("TextLabel")
-local Z = Instance.new("TextLabel")
-local Angle = Instance.new("Frame")
-local Line_2 = Instance.new("Frame")
-local UIAspectRatioConstraint_2 = Instance.new("UIAspectRatioConstraint")
-local JustAText_2 = Instance.new("TextLabel")
-local AngleNumber = Instance.new("TextLabel")
-local R = Instance.new("TextLabel")
-local F = Instance.new("TextLabel")
-local UIAspectRatioConstraint_3 = Instance.new("UIAspectRatioConstraint")
-local Power = Instance.new("Frame")
-local Line_3 = Instance.new("Frame")
-local UIAspectRatioConstraint_4 = Instance.new("UIAspectRatioConstraint")
-local JustAText_3 = Instance.new("TextLabel")
-local PowerNumber = Instance.new("TextLabel")
-local X = Instance.new("TextLabel")
-local Z_2 = Instance.new("TextLabel")
-local JustAText = Instance.new("TextLabel")
-local TargetPlayer = Instance.new("Frame")
-local Line_4 = Instance.new("Frame")
-local UIAspectRatioConstraint_5 = Instance.new("UIAspectRatioConstraint")
-local JustAText_4 = Instance.new("TextLabel")
-local Playerrr = Instance.new("TextLabel")
-local Route = Instance.new("Frame")
-local Line_5 = Instance.new("Frame")
-local UIAspectRatioConstraint_6 = Instance.new("UIAspectRatioConstraint")
-local JustAText_5 = Instance.new("TextLabel")
-local RouteOK = Instance.new("TextLabel")
-local Int = Instance.new("Frame")
-local Line_6 = Instance.new("Frame")
-local UIAspectRatioConstraint_7 = Instance.new("UIAspectRatioConstraint")
-local JustAText_6 = Instance.new("TextLabel")
-local Intable = Instance.new("TextLabel")
-local Catchable = Instance.new("Frame")
-local JustAText_7 = Instance.new("TextLabel")
-local Intable_2 = Instance.new("TextLabel")
-local AirTimeTEXT = Instance.new("TextLabel")
-local UICorner_2 = Instance.new("UICorner")
-
--- Properties
-
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Enabled = false
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.new(0.156863, 0.156863, 0.156863)
-MainFrame.BorderColor3 = Color3.new(0, 0, 0)
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.2319296, 0, 0, 0)
-MainFrame.Size = UDim2.new(0.575757563, 0, 0.0843672454, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0, 10)
+MainFrame.BackgroundTransparency = 1
+MainFrame.Size = UDim2.new(0, 750, 0, 80)
 
-UICorner.Parent = MainFrame
-UICorner.CornerRadius = UDim.new(0, 3)
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = MainFrame
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 10)
 
-DropShadowHolder.Name = "DropShadowHolder"
-DropShadowHolder.Parent = MainFrame
-DropShadowHolder.BackgroundTransparency = 1
-DropShadowHolder.BorderSizePixel = 0
-DropShadowHolder.Size = UDim2.new(1, 0, 1, 0)
-DropShadowHolder.ZIndex = 0
+local PlayerCard = createCard("Player", MainFrame)
+local ThrowTypeCard = createCard("Throw Type", MainFrame, "C")
+local PowerCard = createCard("Power", MainFrame, "X/Z")
+local AngleCard = createCard("Angle", MainFrame, "R/F")
+local TimeOfTravelCard = createCard("Time of Travel", MainFrame)
 
-DropShadow.Name = "DropShadow"
-DropShadow.Parent = DropShadowHolder
-DropShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-DropShadow.BackgroundTransparency = 1
-DropShadow.BorderSizePixel = 0
-DropShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-DropShadow.Size = UDim2.new(1, 47, 1, 47)
-DropShadow.ZIndex = 0
---DropShadow.Image = "rbxassetid://6015897843"--
-DropShadow.ImageColor3 = Color3.new(0, 0, 0)
-DropShadow.ImageTransparency = 0.5
-DropShadow.ScaleType = Enum.ScaleType.Slice
-DropShadow.SliceCenter = Rect.new(49, 49, 450, 450)
+local function updateCardValue(card, value)
+    local valueLabel = card:FindFirstChild("Value")
+    if valueLabel then
+        valueLabel.Text = tostring(value)
+    end
+end
 
-ThrowType.Name = "ThrowType"
-ThrowType.Parent = MainFrame
-ThrowType.BackgroundColor3 = Color3.new(1, 1, 1)
-ThrowType.BackgroundTransparency = 1
-ThrowType.BorderColor3 = Color3.new(0, 0, 0)
-ThrowType.BorderSizePixel = 0
-ThrowType.Size = UDim2.new(0.155746505, 0, 1, 0)
-
-Line.Name = "Line"
-Line.Parent = ThrowType
-Line.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line.BorderColor3 = Color3.new(0, 0, 0)
-Line.BorderSizePixel = 0
-Line.Position = UDim2.new(1, 0, 0, 0)
-Line.Size = UDim2.new(0.0068965517, 0, 1, 0)
-
-UIAspectRatioConstraint.Parent = Line
-UIAspectRatioConstraint.AspectRatio = 0.014705882407724857
-
-JustAText.Name = "Just A Text"
-JustAText.Parent = ThrowType
-JustAText.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText.BackgroundTransparency = 1
-JustAText.BorderColor3 = Color3.new(0, 0, 0)
-JustAText.BorderSizePixel = 0
-JustAText.Position = UDim2.new(0.255172402, 0, 0, 0)
-JustAText.Size = UDim2.new(0, 72, 0, 22)
-JustAText.Font = Enum.Font.SourceSans
-JustAText.Text = "Throw Type:"
-JustAText.TextColor3 = Color3.new(1, 1, 1)
-JustAText.TextSize = 20
-
-ThrowType_2.Name = "ThrowType"
-ThrowType_2.Parent = ThrowType
-ThrowType_2.BackgroundColor3 = Color3.new(1, 1, 1)
-ThrowType_2.BackgroundTransparency = 1
-ThrowType_2.BorderColor3 = Color3.new(0, 0, 0)
-ThrowType_2.BorderSizePixel = 0
-ThrowType_2.Position = UDim2.new(0.331034482, 0, 0.411764711, 0)
-ThrowType_2.Size = UDim2.new(0, 49, 0, 24)
-ThrowType_2.Font = Enum.Font.SourceSans
-ThrowType_2.Text = "Mag"
-ThrowType_2.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-ThrowType_2.TextSize = 40
-
-Z.Name = "Z"
-Z.Parent = ThrowType
-Z.BackgroundColor3 = Color3.new(1, 1, 1)
-Z.BackgroundTransparency = 1
-Z.BorderColor3 = Color3.new(0, 0, 0)
-Z.BorderSizePixel = 0
-Z.Position = UDim2.new(0.0620689653, 0, 0.558823526, 0)
-Z.Size = UDim2.new(0, 28, 0, 23)
-Z.Font = Enum.Font.SourceSans
-Z.Text = "C"
-Z.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Z.TextSize = 30
-
-Angle.Name = "Angle"
-Angle.Parent = MainFrame
-Angle.BackgroundColor3 = Color3.new(1, 1, 1)
-Angle.BackgroundTransparency = 1
-Angle.BorderColor3 = Color3.new(0, 0, 0)
-Angle.BorderSizePixel = 0
-Angle.Position = UDim2.new(0.156820625, 0, 0, 0)
-Angle.Size = UDim2.new(0.155746505, 0, 1, 0)
-
-Line_2.Name = "Line"
-Line_2.Parent = Angle
-Line_2.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line_2.BorderColor3 = Color3.new(0, 0, 0)
-Line_2.BorderSizePixel = 0
-Line_2.Position = UDim2.new(1, 0, 0, 0)
-Line_2.Size = UDim2.new(0.0068965517, 0, 1, 0)
-
-UIAspectRatioConstraint_2.Parent = Line_2
-UIAspectRatioConstraint_2.AspectRatio = 0.014705882407724857
-
-JustAText_2.Name = "Just A Text"
-JustAText_2.Parent = Angle
-JustAText_2.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_2.BackgroundTransparency = 1
-JustAText_2.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_2.BorderSizePixel = 0
-JustAText_2.Position = UDim2.new(0.255172402, 0, 0, 0)
-JustAText_2.Size = UDim2.new(0, 72, 0, 22)
-JustAText_2.Font = Enum.Font.SourceSans
-JustAText_2.Text = "Angle:"
-JustAText_2.TextColor3 = Color3.new(1, 1, 1)
-JustAText_2.TextSize = 20
-
-AngleNumber.Name = "AngleNumber"
-AngleNumber.Parent = Angle
-AngleNumber.BackgroundColor3 = Color3.new(1, 1, 1)
-AngleNumber.BackgroundTransparency = 1
-AngleNumber.BorderColor3 = Color3.new(0, 0, 0)
-AngleNumber.BorderSizePixel = 0
-AngleNumber.Position = UDim2.new(0.331034482, 0, 0.411764711, 0)
-AngleNumber.Size = UDim2.new(0, 49, 0, 24)
-AngleNumber.Font = Enum.Font.SourceSans
-AngleNumber.Text = "35"
-AngleNumber.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-AngleNumber.TextSize = 40
-
-R.Name = "R"
-R.Parent = Angle
-R.BackgroundColor3 = Color3.new(1, 1, 1)
-R.BackgroundTransparency = 1
-R.BorderColor3 = Color3.new(0, 0, 0)
-R.BorderSizePixel = 0
-R.Position = UDim2.new(0.710344851, 0, 0.558823526, 0)
-R.Size = UDim2.new(0, 28, 0, 23)
-R.Font = Enum.Font.SourceSans
-R.Text = "R"
-R.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-R.TextSize = 30
-
-F.Name = "F"
-F.Parent = Angle
-F.BackgroundColor3 = Color3.new(1, 1, 1)
-F.BackgroundTransparency = 1
-F.BorderColor3 = Color3.new(0, 0, 0)
-F.BorderSizePixel = 0
-F.Position = UDim2.new(0.0620689653, 0, 0.558823526, 0)
-F.Size = UDim2.new(0, 28, 0, 23)
-F.Font = Enum.Font.SourceSans
-F.Text = "F"
-F.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-F.TextSize = 30
-
-UIAspectRatioConstraint_3.Parent = MainFrame
-UIAspectRatioConstraint_3.AspectRatio = 13.691176414489746
-
-Power.Name = "Power"
-Power.Parent = MainFrame
-Power.BackgroundColor3 = Color3.new(1, 1, 1)
-Power.BackgroundTransparency = 1
-Power.BorderColor3 = Color3.new(0, 0, 0)
-Power.BorderSizePixel = 0
-Power.Position = UDim2.new(0.31364125, 0, 0, 0)
-Power.Size = UDim2.new(0.155746505, 0, 1, 0)
-
-Line_3.Name = "Line"
-Line_3.Parent = Power
-Line_3.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line_3.BorderColor3 = Color3.new(0, 0, 0)
-Line_3.BorderSizePixel = 0
-Line_3.Position = UDim2.new(1, 0, 0, 0)
-Line_3.Size = UDim2.new(0.0068965517, 0, 1, 0)
-
-UIAspectRatioConstraint_4.Parent = Line_3
-UIAspectRatioConstraint_4.AspectRatio = 0.014705882407724857
-
-JustAText_3.Name = "Just A Text"
-JustAText_3.Parent = Power
-JustAText_3.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_3.BackgroundTransparency = 1
-JustAText_3.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_3.BorderSizePixel = 0
-JustAText_3.Position = UDim2.new(0.255172402, 0, 0, 0)
-JustAText_3.Size = UDim2.new(0, 72, 0, 22)
-JustAText_3.Font = Enum.Font.SourceSans
-JustAText_3.Text = "Power:"
-JustAText_3.TextColor3 = Color3.new(1, 1, 1)
-JustAText_3.TextSize = 20
-
-AirTime.Name = "AirTime"
-AirTime.Parent = MainFrame
-AirTime.BackgroundColor3 = Color3.new(0.0901961, 0.0901961, 0.0901961)
-AirTime.BorderColor3 = Color3.new(0, 0, 0)
-AirTime.BorderSizePixel = 0
-AirTime.Position = UDim2.new(-0.192266405, 0, 0, 0)
-AirTime.Size = UDim2.new(0, 155, 0, 68)
-
-
-
-AirTimeTEXT.Name = "AirTimeTEXT"
-AirTimeTEXT.Parent = AirTime
-AirTimeTEXT.BackgroundColor3 = Color3.new(1, 1, 1)
-AirTimeTEXT.BackgroundTransparency = 1
-AirTimeTEXT.BorderColor3 = Color3.new(0, 0, 0)
-AirTimeTEXT.BorderSizePixel = 0
-AirTimeTEXT.Position = UDim2.new(0.354838699, 0, 0.357142866, 0)
-AirTimeTEXT.Size = UDim2.new(0, 45, 0, 30)
-AirTimeTEXT.Font = Enum.Font.SourceSans
-AirTimeTEXT.Text = "1.50"
-AirTimeTEXT.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-AirTimeTEXT.TextSize = 40
-
-
-UICorner_2.Parent = AirTime
-UICorner_2.CornerRadius = UDim.new(0, 2)
-
-JusAText.Name = "JusAText"
-JusAText.Parent = AirTime
-JusAText.BackgroundColor3 = Color3.new(1, 1, 1)
-JusAText.BackgroundTransparency = 1
-JusAText.BorderColor3 = Color3.new(0, 0, 0)
-JusAText.BorderSizePixel = 0
-JusAText.Position = UDim2.new(-0.148387089, 0, -0.200000003, 0)
-JusAText.Size = UDim2.new(0, 200, 0, 50)
-JusAText.Font = Enum.Font.SourceSans
-JusAText.Text = "Airtime:"
-JusAText.TextColor3 = Color3.new(1, 1, 1)
-JusAText.TextSize = 25
-
-
-PowerNumber.Name = "PowerNumber"
-PowerNumber.Parent = Power
-PowerNumber.BackgroundColor3 = Color3.new(1, 1, 1)
-PowerNumber.BackgroundTransparency = 1
-PowerNumber.BorderColor3 = Color3.new(0, 0, 0)
-PowerNumber.BorderSizePixel = 0
-PowerNumber.Position = UDim2.new(0.331034482, 0, 0.411764711, 0)
-PowerNumber.Size = UDim2.new(0, 49, 0, 24)
-PowerNumber.Font = Enum.Font.SourceSans
-PowerNumber.Text = "60"
-PowerNumber.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-PowerNumber.TextSize = 40
-
-X.Name = "X"
-X.Parent = Power
-X.BackgroundColor3 = Color3.new(1, 1, 1)
-X.BackgroundTransparency = 1
-X.BorderColor3 = Color3.new(0, 0, 0)
-X.BorderSizePixel = 0
-X.Position = UDim2.new(0.751724124, 0, 0.558823526, 0)
-X.Size = UDim2.new(0, 28, 0, 23)
-X.Font = Enum.Font.SourceSans
-X.Text = "X"
-X.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-X.TextSize = 30
-
-Z_2.Name = "Z"
-Z_2.Parent = Power
-Z_2.BackgroundColor3 = Color3.new(1, 1, 1)
-Z_2.BackgroundTransparency = 1
-Z_2.BorderColor3 = Color3.new(0, 0, 0)
-Z_2.BorderSizePixel = 0
-Z_2.Position = UDim2.new(0.0620689653, 0, 0.558823526, 0)
-Z_2.Size = UDim2.new(0, 28, 0, 23)
-Z_2.Font = Enum.Font.SourceSans
-Z_2.Text = "Z"
-Z_2.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Z_2.TextSize = 30
-
-TargetPlayer.Name = "TargetPlayer"
-TargetPlayer.Parent = MainFrame
-TargetPlayer.BackgroundColor3 = Color3.new(1, 1, 1)
-TargetPlayer.BackgroundTransparency = 1
-TargetPlayer.BorderColor3 = Color3.new(0, 0, 0)
-TargetPlayer.BorderSizePixel = 0
-TargetPlayer.Position = UDim2.new(0.46938777, 0, 0, 0)
-TargetPlayer.Size = UDim2.new(0.155746505, 0, 1, 0)
-
-Line_4.Name = "Line"
-Line_4.Parent = TargetPlayer
-Line_4.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line_4.BorderColor3 = Color3.new(0, 0, 0)
-Line_4.BorderSizePixel = 0
-Line_4.Position = UDim2.new(1, 0, 0, 0)
-Line_4.Size = UDim2.new(0.0068965517, 0, 1, 0)
-
-UIAspectRatioConstraint_5.Parent = Line_4
-UIAspectRatioConstraint_5.AspectRatio = 0.014705882407724857
-
-JustAText_4.Name = "Just A Text"
-JustAText_4.Parent = TargetPlayer
-JustAText_4.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_4.BackgroundTransparency = 1
-JustAText_4.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_4.BorderSizePixel = 0
-JustAText_4.Position = UDim2.new(0.255172402, 0, 0, 0)
-JustAText_4.Size = UDim2.new(0, 72, 0, 22)
-JustAText_4.Font = Enum.Font.SourceSans
-JustAText_4.Text = "TargetPlayer:"
-JustAText_4.TextColor3 = Color3.new(1, 1, 1)
-JustAText_4.TextSize = 20
-
-Playerrr.Name = "Player"
-Playerrr.Parent = TargetPlayer
-Playerrr.BackgroundColor3 = Color3.new(1, 1, 1)
-Playerrr.BackgroundTransparency = 1
-Playerrr.BorderColor3 = Color3.new(0, 0, 0)
-Playerrr.BorderSizePixel = 0
-Playerrr.Position = UDim2.new(0.331034482, 0, 0.411764711, 0)
-Playerrr.Size = UDim2.new(0, 49, 0, 24)
-Playerrr.Font = Enum.Font.SourceSans
-Playerrr.Text = "RedX_12890"
-Playerrr.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Playerrr.TextSize = 20
-
-Route.Name = "Route"
-Route.Parent = MainFrame
-Route.BackgroundColor3 = Color3.new(1, 1, 1)
-Route.BackgroundTransparency = 1
-Route.BorderColor3 = Color3.new(0, 0, 0)
-Route.BorderSizePixel = 0
-Route.Position = UDim2.new(0.626208365, 0, 0, 0)
-Route.Size = UDim2.new(0.155746505, 0, 1, 0)
-
-Line_5.Name = "Line"
-Line_5.Parent = Route
-Line_5.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line_5.BorderColor3 = Color3.new(0, 0, 0)
-Line_5.BorderSizePixel = 0
-Line_5.Position = UDim2.new(1, 0, 0, 0)
-Line_5.Size = UDim2.new(0.0068965517, 0, 1, 0)
-
-UIAspectRatioConstraint_6.Parent = Line_5
-UIAspectRatioConstraint_6.AspectRatio = 0.014705882407724857
-
-JustAText_5.Name = "Just A Text"
-JustAText_5.Parent = Route
-JustAText_5.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_5.BackgroundTransparency = 1
-JustAText_5.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_5.BorderSizePixel = 0
-JustAText_5.Position = UDim2.new(0.255172402, 0, 0, 0)
-JustAText_5.Size = UDim2.new(0, 72, 0, 22)
-JustAText_5.Font = Enum.Font.SourceSans
-JustAText_5.Text = "Route:"
-JustAText_5.TextColor3 = Color3.new(1, 1, 1)
-JustAText_5.TextSize = 20
-
-RouteOK.Name = "RouteType"
-RouteOK.Parent = Route
-RouteOK.BackgroundColor3 = Color3.new(1, 1, 1)
-RouteOK.BackgroundTransparency = 1
-RouteOK.BorderColor3 = Color3.new(0, 0, 0)
-RouteOK.BorderSizePixel = 0
-RouteOK.Position = UDim2.new(0.331034482, 0, 0.411764711, 0)
-RouteOK.Size = UDim2.new(0, 49, 0, 24)
-RouteOK.Font = Enum.Font.SourceSans
-RouteOK.Text = "Slant"
-RouteOK.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-RouteOK.TextSize = 40
-
-Int.Name = "Int"
-Int.Parent = MainFrame
-Int.BackgroundColor3 = Color3.new(1, 1, 1)
-Int.BackgroundTransparency = 1
-Int.BorderColor3 = Color3.new(0, 0, 0)
-Int.BorderSizePixel = 0
-Int.Position = UDim2.new(0.78302902, 0, 0, 0)
-Int.Size = UDim2.new(0.111707851, 0, 1, 0)
-
-Line_6.Name = "Line"
-Line_6.Parent = Int
-Line_6.BackgroundColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Line_6.BorderColor3 = Color3.new(0, 0, 0)
-Line_6.BorderSizePixel = 0
-Line_6.Position = UDim2.new(1.00000226, 0, 0, 0)
-Line_6.Size = UDim2.new(0.0742001384, 0, 1, 0)
-
-UIAspectRatioConstraint_7.Parent = Line_6
-UIAspectRatioConstraint_7.AspectRatio = 0.014705882407724857
-
-JustAText_6.Name = "Just A Text"
-JustAText_6.Parent = Int
-JustAText_6.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_6.BackgroundTransparency = 1
-JustAText_6.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_6.BorderSizePixel = 0
-JustAText_6.Position = UDim2.new(0.207095787, 0, 0, 0)
-JustAText_6.Size = UDim2.new(0, 72, 0, 22)
-JustAText_6.Font = Enum.Font.SourceSans
-JustAText_6.Text = "Intable"
-JustAText_6.TextColor3 = Color3.new(1, 1, 1)
-JustAText_6.TextSize = 20
-
-Intable.Name = "Intable"
-Intable.Parent = Int
-Intable.BackgroundColor3 = Color3.new(1, 1, 1)
-Intable.BackgroundTransparency = 1
-Intable.BorderColor3 = Color3.new(0, 0, 0)
-Intable.BorderSizePixel = 0
-Intable.Position = UDim2.new(0.311803937, 0, 0.411764711, 0)
-Intable.Size = UDim2.new(0, 49, 0, 24)
-Intable.Font = Enum.Font.SourceSans
-Intable.Text = "Yes"
-Intable.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Intable.TextSize = 40
-
-Catchable.Name = "Catchable"
-Catchable.Parent = MainFrame
-Catchable.BackgroundColor3 = Color3.new(1, 1, 1)
-Catchable.BackgroundTransparency = 1
-Catchable.BorderColor3 = Color3.new(0, 0, 0)
-Catchable.BorderSizePixel = 0
-Catchable.Position = UDim2.new(0.8958112, 0, 0, 0)
-Catchable.Size = UDim2.new(0.14188792, 0, 1, 0)
-
-JustAText_7.Name = "Just A Text"
-JustAText_7.Parent = Catchable
-JustAText_7.BackgroundColor3 = Color3.new(1, 1, 1)
-JustAText_7.BackgroundTransparency = 1
-JustAText_7.BorderColor3 = Color3.new(0, 0, 0)
-JustAText_7.BorderSizePixel = 0
-JustAText_7.Position = UDim2.new(0.076477333, 0, 0, 0)
-JustAText_7.Size = UDim2.new(0, 72, 0, 22)
-JustAText_7.Font = Enum.Font.SourceSans
-JustAText_7.Text = "Catchable"
-JustAText_7.TextColor3 = Color3.new(1, 1, 1)
-JustAText_7.TextSize = 20
-
-Intable_2.Name = "Intable"
-Intable_2.Parent = Catchable
-Intable_2.BackgroundColor3 = Color3.new(1, 1, 1)
-Intable_2.BackgroundTransparency = 1
-Intable_2.BorderColor3 = Color3.new(0, 0, 0)
-Intable_2.BorderSizePixel = 0
-Intable_2.Position = UDim2.new(0.111803937, 0, 0.411764711, 0)
-Intable_2.Size = UDim2.new(0, 49, 0, 24)
-Intable_2.Font = Enum.Font.SourceSans
-Intable_2.Text = "No"
-Intable_2.TextColor3 = Color3.new(0.3451, 0.3961, 0.9490)
-Intable_2.TextSize = 40
+local function truncateName(name)
+    if #name > 9 then
+        local player = game.Players:FindFirstChild(name)
+        if player and player.DisplayName then
+            name = player.DisplayName
+        end
+        if #name > 9 then
+            name = string.sub(name, 1, 9)
+        end
+    end
+    return name
+end
 
 local prom = game:GetService("CoreGui"):FindFirstChild("prom")
 
 if prom then
-    HASH9:Destroy()
+    prom:Destroy()
 end
 
 local function grabMousePos()
@@ -880,11 +484,6 @@ local function GetTimeOfFlightProjectile(initialVelocity, angle, gravity)
     return (2 * initialVelocity * math.sin(angle)) / gravity
 end
 
-local function TimeOfFlight2(initialVelocity, angle, gravity)
-    local verticalVelocity = CalculateInitialVelocityY(initialVelocity, angle)
-    return verticalVelocity / gravity
-end
-
 local function CalculateVelocityToReachPosition(start, target, gravity, time)
     if not (typeof(start) == "Vector3" and typeof(target) == "Vector3" and typeof(gravity) == "Vector3") then
         warn("Inputs must be Vector3")
@@ -918,7 +517,13 @@ local function isVector3Valid(vec3)
 end
 
 local function getThrowType()
-    return tostring(ThrowType_2.Text)
+    if window and type(window.getTabValue) == "function" then
+        local throwType = window.getTabValue(mainTab, "Throw Type")
+        if throwType then
+            return throwType
+        end
+    end
+    return "Dime"
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -929,11 +534,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if not football then return end
     
     local throwTypes = {"Dime", "Mag", "Dot", "Dive", "Fade", "Bullet", "Jump"}
-    local currentIndex = table.find(throwTypes, ThrowType_2.Text)
+    local currentThrowType = getThrowType()
+    local currentIndex = table.find(throwTypes, currentThrowType)
     
     if currentIndex then
         local nextIndex = currentIndex % #throwTypes + 1
-        ThrowType_2.Text = throwTypes[nextIndex]
+        local nextThrowType = throwTypes[nextIndex]
+
+        updateCardValue(ThrowTypeCard, nextThrowType)
     end
 end)
 
@@ -1278,15 +886,20 @@ local function GetTargetPositionForWR(Time, WideReceiver)
     end
 end
 
-local Data = {
+Data = {
     Direction = Vector3.new(0, 0, 0),
-    NormalPower = 55,		
+    NormalPower = 75,		
     BulletModeAngle = 5,
     FadeModeAngle = 55,
-    LowestPower = 40,
-    MaxPower = 95,
+    DimeModeAngle = 45,
+    MagModeAngle = 45,
+    DiveModeAngle = 45,
+    DotModeAngle = 45,
+    JumpModeAngle = 45,
     Angle = 45,
-    MaxAngle = 55,
+    LowestPower = 5,
+    MaxPower = 95,
+    MaxAngle = 80,
     LowestAngle = 10
 }
 
@@ -1295,36 +908,51 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     
     local throwType = getThrowType()
     local angleData = {
-        Bullet = {field = "BulletModeAngle", min = 5, max = 20},
-        Fade = {field = "FadeModeAngle", min = 55, max = 75},
-        Default = {field = "Angle", min = 10, max = 55}
+        Bullet = {field = "BulletModeAngle"},
+        Fade = {field = "FadeModeAngle"},
+        Dime = {field = "DimeModeAngle"},
+        Mag = {field = "MagModeAngle"},
+        Dive = {field = "DiveModeAngle"},
+        Dot = {field = "DotModeAngle"},
+        Jump = {field = "JumpModeAngle"},
+        Default = {field = "Angle"}
     }
     
     local angleInfo = angleData[throwType] or angleData.Default
     local currentAngle = Data[angleInfo.field]
     
-    if input.KeyCode == Enum.KeyCode.R and currentAngle < angleInfo.max then
-        Data[angleInfo.field] = currentAngle + 5
-    elseif input.KeyCode == Enum.KeyCode.F and currentAngle > angleInfo.min then
-        Data[angleInfo.field] = currentAngle - 5
-    elseif input.KeyCode == Enum.KeyCode.R and currentAngle == angleInfo.max then
-        warn(string.format("Cannot increase angle any more, Max Angle is %d", angleInfo.max))
-    elseif input.KeyCode == Enum.KeyCode.F and currentAngle == angleInfo.min then
-        warn(string.format("Cannot decrease angle any more, Lowest Angle is %d", angleInfo.min))
+    if input.KeyCode == Enum.KeyCode.R then
+        Data[angleInfo.field] = math.min(currentAngle + 5, 95)
+        updateCardValue(AngleCard, Data[angleInfo.field])
+    elseif input.KeyCode == Enum.KeyCode.F then
+        Data[angleInfo.field] = math.max(currentAngle - 5, 5)
+        updateCardValue(AngleCard, Data[angleInfo.field])
+    end
+    
+    if Data[angleInfo.field] == 95 and input.KeyCode == Enum.KeyCode.R then
+        warn("Max angle reached (95)")
+    elseif Data[angleInfo.field] == 5 and input.KeyCode == Enum.KeyCode.F then
+        warn("Min angle reached (5)")
     end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if AutoPower or gameProcessedEvent then return end
     
-    if input.KeyCode == Enum.KeyCode.Z and Data.NormalPower < Data.MaxPower then
-        Data.NormalPower = Data.NormalPower + 5
-    elseif input.KeyCode == Enum.KeyCode.X and Data.NormalPower > Data.LowestPower then
-        Data.NormalPower = Data.NormalPower - 5
-    elseif input.KeyCode == Enum.KeyCode.Z and Data.NormalPower == Data.MaxPower then
-        warn("Max Power, Cannot Adjust Any Higher")
-    elseif input.KeyCode == Enum.KeyCode.X and Data.NormalPower == Data.LowestPower then
-        warn("Lowest Possible Power, Cannot Adjust Any Lower")
+    if input.KeyCode == Enum.KeyCode.Z then
+        if Data.NormalPower < Data.MaxPower then
+            Data.NormalPower = Data.NormalPower + 5
+            updateCardValue(PowerCard, Data.NormalPower)
+        else
+            warn("Max Power, Cannot Adjust Any Higher")
+        end
+    elseif input.KeyCode == Enum.KeyCode.X then
+        if Data.NormalPower > Data.LowestPower then
+            Data.NormalPower = Data.NormalPower - 5
+            updateCardValue(PowerCard, Data.NormalPower)
+        else
+            warn("Lowest Possible Power, Cannot Adjust Any Lower")
+        end
     end
 end)
 
@@ -1361,14 +989,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         if not ClosestPlayer then print("No target found.") return end
         
         local Throwtype = getThrowType()
-        local Initial = AutoPower and 95 or Data.NormalPower
-        
-        local WhichOne2 = Throwtype == "Fade" and Data.FadeModeAngle or
-                          Throwtype == "Bullet" and Data.BulletModeAngle or
-                          Data.Angle
-        
+         local Initial = AutoPower and 95 or Data.NormalPower
+         
+         local WhichOne2 = Throwtype == "Fade" and Data.FadeModeAngle or
+                           Throwtype == "Bullet" and Data.BulletModeAngle or
+                           Data.Angle
+
         local toLaunchAngle
-        if AutoAngle then
+         if AutoAngle then
             if Throwtype == "Fade" then
                 toLaunchAngle = math.rad(75)
             elseif Throwtype == "Bullet" then
@@ -1381,6 +1009,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         end
         
         local TOF = GetTimeOfFlightProjectile(Initial, toLaunchAngle, GRAVITY)
+        updateCardValue(TimeOfTravelCard, string.format("%.2f", TOF))
         local YesEnd = string.find(ClosestPlayer.Name, "bot [13]") and BotEstimatedVel(TOF, ClosestPlayer) or GetTargetPositionForWR(TOF, ClosestPlayer)
         
         local vel, toThrowToDirection, pow = CalculateVelocityToReachPosition(start, YesEnd, Vector3.new(0, -GRAVITY, 0), TOF)
@@ -1432,10 +1061,9 @@ end)
 
 task.spawn(function()
     RunService.Heartbeat:Connect(function()
-		if not IsAimbotActive then return end
+        if not IsAimbotActive then return end
 
         task.wait()
-        
         if not IsLocked then
             ClosestPlayer = getNearestPlayerToMouse()
         end
@@ -1452,7 +1080,7 @@ task.spawn(function()
         
         Highlight.Enabled = true
         Highlight.OutlineTransparency = 0
-        Highlight.FillColor = Color3.new(0.5098, 0.5098, 0.7059)
+        Highlight.FillColor = Color3.fromRGB(0, 255, 0)
         Highlight.OutlineColor = Color3.new(0, 0, 0)
         
         local isBot = string.find(ClosestPlayer.Name, "bot [13]")
@@ -1481,14 +1109,14 @@ task.spawn(function()
         else
             LaunchAngle = math.rad(WhichOne)
         end
-        
+
         local TOF = GetTimeOfFlightProjectile(Initial, LaunchAngle, GRAVITY)
+        updateCardValue(TimeOfTravelCard, string.format("%.2f", TOF))
         TargetPosition = isBot and BotEstimatedVel(TOF, ClosestPlayer) or GetTargetPositionForWR(TOF, ClosestPlayer)
         
         local velocity, direction, power = CalculateVelocityToReachPosition(Start, TargetPosition, Vector3.new(0, -GRAVITY, 0), TOF)
-		Initial = power
         local POWAA = AutoPower and (Throwtype == "Fade" and 95 or Throwtype == "Bullet" and clampNumber(power, 90, 95) or power) or Data.NormalPower
-                
+              
         if isVector3Valid(direction) and isVector3Valid(TargetPosition) then
             ThrowingTab.Direction = direction
             
@@ -1496,51 +1124,28 @@ task.spawn(function()
             
             local curve0, curve1, cf0, cf1 = beamProjectile(Vector3.new(0, -GRAVITY, 0), POWAA * direction, startAdjusted, TOF)
             
-			if beam and beam.Attachment0 and beam.Attachment1 then
-				beam.CurveSize0, beam.CurveSize1 = curve0, curve1
-				beam.Attachment0.CFrame = beam.Attachment0.Parent.CFrame:inverse() * cf0
-				beam.Attachment1.CFrame = beam.Attachment1.Parent.CFrame:inverse() * cf1
-				beam.Width0, beam.Width1 = 0.5, 0.5
-				
-				local sum = (beam.Attachment1.CFrame - beam.Attachment1.Position):Inverse()
-				if targetVisual and targetVisual.Parent then
-					targetVisual.CFrame = beam.Attachment1.CFrame * sum * CFrame.Angles(math.rad(0), 0, 0)
-					
-					local CamPo, OnScren = isVisandPos(targetVisual.Position)
-					local CamPo2, OnS = isVisandPos(beam.Attachment0.Position)
-					if OnScren and OnS and trc then
-						trc.From = Vector2.new(CamPo2.X, CamPo2.Y)
-						trc.To = Vector2.new(CamPo.X, CamPo.Y)
-					end
-				end
-			end
-			
-			if Playerrr then Playerrr.Text = ClosestPlayer and ClosestPlayer.Name or "" end
-			if PowerNumber then PowerNumber.Text = tostring(math.floor(POWAA * 2 + 0.5) / 2) end
-			if RouteOK then RouteOK.Text = PredictedRoute or "" end
-			
-			local interceptor = isBot and getClosestCBtoBot(ClosestPlayer) or getPeopleGuardingClosestToMouse(ClosestPlayer)
-			if Intable and targetVisual and targetVisual.Parent then
-				Intable.Text = (isBot and botInterceptable or Interceptable)(interceptor, targetVisual.Position, TOF) and "Yes" or "No"
-			end
-			
-            local catcher = getNearestPlayerToMouse()
-			if Intable_2 and targetVisual and targetVisual.Parent then
-				local catcher = getNearestPlayerToMouse()
-				if catcher then
-					local catcherFunction = isBot and botCatchable or Catchable
-					Intable_2.Text = catcherFunction(catcher, targetVisual.Position, TOF) and "Yes" or "No"
-				else
-					Intable_2.Text = "N/A"
-				end
-			else
-				if Intable_2 then
-					Intable_2.Text = "N/A"
-				end
-			end            
-            AirTimeTEXT.Text = tostring(RoundToHundredths(TOF)).."s"
+            if beam and beam.Attachment0 and beam.Attachment1 then
+                beam.CurveSize0, beam.CurveSize1 = curve0, curve1
+                beam.Attachment0.CFrame = beam.Attachment0.Parent.CFrame:inverse() * cf0
+                beam.Attachment1.CFrame = beam.Attachment1.Parent.CFrame:inverse() * cf1
+                beam.Width0, beam.Width1 = 0.5, 0.5
+                
+                local sum = (beam.Attachment1.CFrame - beam.Attachment1.Position):Inverse()
+                if targetVisual and targetVisual.Parent then
+                    targetVisual.CFrame = beam.Attachment1.CFrame * sum * CFrame.Angles(math.rad(0), 0, 0)
+                    
+                    local CamPo, OnScren = isVisandPos(targetVisual.Position)
+                    local CamPo2, OnS = isVisandPos(beam.Attachment0.Position)
+                    if OnScren and OnS and trc then
+                        trc.From = Vector2.new(CamPo2.X, CamPo2.Y)
+                        trc.To = Vector2.new(CamPo.X, CamPo.Y)
+                    end
+                end
+            end
             
-            AngleNumber.Text = AutoAngle and (Throwtype == "Fade" and "75" or tostring(math.floor(math.deg(LaunchAngle) * 2 + 0.5) / 2)) or tostring(WhichOne)
+            updateCardValue(PlayerCard, truncateName(ClosestPlayer and ClosestPlayer.Name or ""))
+            updateCardValue(PowerCard, math.floor(POWAA * 2 + 0.5) / 2)
+            updateCardValue(AngleCard, AutoAngle and (Throwtype == "Fade" and "75" or tostring(math.floor(math.deg(LaunchAngle) * 2 + 0.5) / 2)) or tostring(WhichOne))
         end
     end)
 end)
