@@ -917,7 +917,7 @@ function Prometheus.createWindow(title)
                 Size = UDim2.new(1, -10, 1, -10),
                 Position = UDim2.new(0, 5, 0, 5),
                 BackgroundTransparency = 1,
-                ScrollBarThickness = 0,
+                ScrollBarThickness = 1.3,
                 CanvasSize = UDim2.new(0, 0, 0, 0),
                 Parent = optionsFrame
             })
